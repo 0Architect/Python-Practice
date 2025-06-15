@@ -1,76 +1,141 @@
-BRANCH_MIDDLE = '\u251c\u2500\u2500' 
-BRANCH_LAST = '\u2514\u2500\u2500' 
+from typing import Any, Optional
+import sys
+
+MIDDLE_BRANCH = '\u251c\u2500\u2500' 
+LAST_BRANCH = '\u2514\u2500\u2500' 
 VERTICAL_LINE = "│   "
 INDENT_SPACE = "    "
+
 class Node:
-    def __init__(self, value: str | None = None) -> None:
+    def __init__(self, value: Optional[Any] = None):
         self.__value = value
     
     def __str__(self):
-        return self.__value if self.__value is not None else ""
+        return str(self.__value) if self.__value is not None else ""
+    
+    def __bool__(self):
+        return bool(self.__value)
+    
+    @property
+    def value(self):
+        return self.__value
+
+    # def set_value(self, value: Any):
+    #     if type(value ==  None):
+    #         raise ValueError("Can not set node to value type: None")
+    #     self.__value = value
 
 class Tree:
-    def __init__(self):
-        self.children: dict[str, Tree] = {}
+    def __init__(self, max_no_of_children: int = sys.maxsize, type: type = int, value: Optional[Any] = None) -> None:
+        self._root = Node(value)
+        self.type = type
+        self.MAX_NO_OF_CHILDREN = max_no_of_children
+        self.nodes: dict[Node, tuple[Node, list[Node], Node]] = dict({})
+        self.nodes[self._root] = (self._root, [], Node(None))
+    
+    @property
+    def root(self) -> Node:
+        return self._root
 
-    def view_tree(self, parent_input: str = "", indent_level: int = 0):
-        output = parent_input
-        letters = list(self.children.keys())
-        num_size = len(letters)
-        for i, letter in enumerate(letters):
+    def parent(self, node: Node) -> Node:
+        return self.nodes[node][2]
+    
+    def children(self, node: Node) -> list[Node]:
+        return self.nodes[node][1]
+
+    def insert(self, parent_node: Node, node: Node):
+        if type(node.value) != self.type:
+            raise TypeError(f"Type of node should be {self.type}")
+        
+        if parent_node not in self.nodes:
+            raise KeyError(f"Key Error: {parent_node} not in {self.nodes}")
+        
+        if len(self.children(parent_node)) == self.MAX_NO_OF_CHILDREN:
+            raise IndexError(f"This node has reached it's maximum number of children: f{self.MAX_NO_OF_CHILDREN}")
+        
+        self.nodes[node] = (node, [], parent_node)
+        self.nodes[parent_node][1].append(node)
+
+        return node
+    
+    def view_tree(self, node: Node, indent: str = ""):
+        node_list = self.children(node)
+        num_size = len(node_list)
+        for i, child in enumerate(node_list):
             if i != num_size - 1:
-                current_branch = BRANCH_MIDDLE
+                current_branch = MIDDLE_BRANCH
+                next_indent = indent + VERTICAL_LINE
             else:
-                current_branch = BRANCH_LAST
-            print(f"{output}{current_branch} {letter}")
-            output += VERTICAL_LINE if i != num_size - 1 else INDENT_SPACE
-            self.children[letter].view_tree(parent_input = output, indent_level= indent_level+1)
+                current_branch = LAST_BRANCH
+                next_indent = indent + INDENT_SPACE
+            print(f"{indent}{current_branch} {child}")
+            self.view_tree(child, next_indent)
 
 class BinaryTree(Tree):
-    def __init__(self, node: Node):
-        super().__init__()
-        self.node = node
+    def __init__(self, data_type: type = int):
+        super().__init__(max_no_of_children=2, type=data_type)
+
+    def left_child(self, node: Node) -> Node | None:
+        if len(self.children(node)) >= 1:
+            return self.children(node)[0]
+        else:
+            return None
     
-    def preorder(self):
-        print(self.node)
-        if self.children["left"]:
-            self.children["left"].preorder()
-        if self.children["right"]:
-            self.children["right"].preorder()
-        return
-
-    def inorder(self):
-        if self.children["left"]:
-            self.children["left"].inorder()
-        print(self.node)
-        if self.children["right"]:
-            self.children["right"].inorder()
-        return
-        
-    def postorder(self):
-        if self.children["left"]:
-            self.children["left"].inorder()
-        if self.children["right"]:
-            self.children["right"].inorder()
-        print(self.node)
-        return
-
-    def insertleftchild(self, value: Node):
-        self.children["left"] = BinaryTree(value)
-
-    def insertrightchild(self, value: Node):
-        self.children["right"] = BinaryTree(value)
+    def right_child(self, node: Node) -> Node | None:
+        if len(self.children(node)) > 1:
+            return self.children(node)[1]
+        else:
+            return None
     
-    def traverseLeft(self):
-        if self.children["left"]:
-            return self.children["left"]
+    def preorder(self, node: Node):
+        left_child = self.left_child(node)
+        right_child = self.right_child(node)
+        if node:
+            print(node)
+        if left_child:
+            self.preorder(left_child)
+        if right_child:
+            self.preorder(right_child)
 
-    def traverseRight(self):
-        if self.children["right"]:
-            return self.children["right"]
+    def inorder(self, node: Node):
+        left_child = self.left_child(node)
+        right_child = self.right_child(node)
+        if left_child:
+            self.inorder(left_child)
+        if node:
+            print(node)
+        if right_child:
+            self.inorder(right_child)
+    
+    def postorder(self, node: Node):
+        left_child = self.left_child(node)
+        right_child = self.right_child(node)
+        if left_child:
+            self.postorder(left_child)
+        if right_child:
+            self.postorder(right_child)
+        if node:
+            print(node)
 
-# class Trie:
-#     def __init__(self, vocabulary: list[str]):
+
+class Trie(Tree):
+    def __init__(self):
+        super().__init__(type=str, value="")
+    
+    def insert_word(self, node: Node, word: str):
+        if word:
+            for char in word:
+                node_char  = Node(char)
+                for child in self.children(node):
+                    if child.value == char:
+                        self.insert_word(child, word[1:])
+                    else:
+                        print("no match")
+                        self.insert(node, node_char)
+                        self.insert_word(node_char, word[1:])
+        else:
+            self.insert(node, Node('*'))
+
 #         self.vocabulary = vocabulary
 #         self.organized_vocabulary: dict[str, list[str]] = {}
 #         self.children: dict[str, Trie] = {}
@@ -138,6 +203,7 @@ class BinaryTree(Tree):
 
 # TODO: Rewrite Trie using insertion instead of how I did it.
 # TODOl Fully integrate the Base Class Tree with all the derivatives
+# TODO: Enforce types for the Node class
 # TODO: Implement the view tree function
 # TODO: Ensure the prefix finder in Trie works (may need to implement end-of-word token)
 # TODO: Fix Trie entirely
