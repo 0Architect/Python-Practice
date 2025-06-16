@@ -13,17 +13,9 @@ class Node:
     def __str__(self):
         return str(self.__value) if self.__value is not None else ""
     
-    def __bool__(self):
-        return bool(self.__value)
-    
     @property
     def value(self):
         return self.__value
-
-    # def set_value(self, value: Any):
-    #     if type(value ==  None):
-    #         raise ValueError("Can not set node to value type: None")
-    #     self.__value = value
 
 class Tree:
     def __init__(self, max_no_of_children: int = sys.maxsize, type: type = int, value: Optional[Any] = None) -> None:
@@ -124,86 +116,56 @@ class Trie(Tree):
     
     def insert_word(self, node: Node, word: str):
         if word:
-            for char in word:
-                node_char  = Node(char)
-                for child in self.children(node):
-                    if child.value == char:
-                        self.insert_word(child, word[1:])
-                    else:
-                        print("no match")
-                        self.insert(node, node_char)
-                        self.insert_word(node_char, word[1:])
+            node_char  = Node(word[0])
+            child_node = next((node for node in self.children(node) if node.value == node_char.value), None)
+            if child_node:
+                self.insert_word(child_node, word[1:])
+            else:
+                self.insert(node, node_char)
+                self.insert_word(node_char, word[1:])
         else:
             self.insert(node, Node('*'))
-
-#         self.vocabulary = vocabulary
-#         self.organized_vocabulary: dict[str, list[str]] = {}
-#         self.children: dict[str, Trie] = {}
-
-#         # for i in range(len(self.vocabulary)):
-#         #     word = self.vocabulary[i]
-#         #     if word:
-#         #         self.vocabulary[i] = word[1:]
-#         #         if word[0] not in self.organized_vocabulary.keys():
-#         #             self.organized_vocabulary[word[0]] = []
-#         #         self.organized_vocabulary[word[0]].append(self.vocabulary[i])
-#         # for letter in self.organized_vocabulary.keys():
-#         #     self.children[letter] = Trie(self.organized_vocabulary[letter])
     
-#         for word in self.vocabulary:
-#             self.insert(word)
-    
-#     # def __str__(self) -> str:
-#     #     output = ""
-#     #     for letter in self.children.keys():
-#     #         output += letter
-#     #         output += str(self.children[letter])
-#     #         output += '\n'
-#     #     return output
+    def get_children(self, node: Node) -> list[str]:
+        output: list[str] = []
+        for child in self.children(node):
+            if child.value:
+                child_output:list[str] = []
+                child_suffixes = self.get_children(child)
+                for suffix in child_suffixes:
+                    child_output.append(child.value + suffix)
+                if child_output:
+                    output += child_output
+                else:
+                    output.append("")
+        return output
 
-#     def insert(self, word: str):
-#         if not word:
-#             return
-#         first_letter = word[0]
-#         rest = word[1:]
-#         if first_letter in self.children.keys():
-#             self.children[first_letter].insert(rest)
-#         else:
-#             self.children[first_letter] = Trie([rest])
-    
+    def find_prefix(self, node: Node, prefix: str):
+        if len(prefix) == 1:
+            char = prefix
+            child = next((child for child in self.children(node) if child.value == char), None)
+            if child:
+                return child
+            else:
+                raise StopIteration("Node not present")
 
-# test1 = Trie(["Apple", "Attack", "Appole", "Bark", "Bast", "Batch", "Car", "Cart", "Cartoon"])
-# # test1 = Trie(["Car", "Cart", "Cartoon"])
-# test1.view_tree()
+        elif len(prefix) == 0:
+            raise StopIteration("Node not present")
 
-# # class newTrie:
-# #     def __init__(self, word: str) -> None:
-# #         self.children: dict[str, newTrie] = {}
+        else:
+            char = prefix[0]
+            child = next((child for child in self.children(node) if child.value == char), None)
+            if child:
+                output = self.find_prefix(child, prefix[1:])
+                if type(output) == Node:
+                    return output
+            else:
+                raise StopIteration("Node not present")
 
-# #         self.insert(word)
-    
-# #     def find_prefix(self, prefix: str):
-# #         #TODO: think about empty string
-# #         if len(prefix) == 1:
-# #             for letter in self.children.keys():
-# #                 if letter == prefix:
-# #                     return self.children[letter]
-# #                 else:
-# #                     return None
-# #         first_letter = prefix[0]
-# #         rest = prefix[1:]
-# #         for letter in self.children.keys():
-# #             if first_letter == letter:
-# #                 return self.children[letter].find_prefix(rest)
-# #         return None
-
-# #     def insert(self, word: str):
-# #         current_letter = word[0]
-# #         while(currentTrie = self.find_prefix(current_letter)):
-
-# TODO: Rewrite Trie using insertion instead of how I did it.
-# TODOl Fully integrate the Base Class Tree with all the derivatives
-# TODO: Enforce types for the Node class
-# TODO: Implement the view tree function
-# TODO: Ensure the prefix finder in Trie works (may need to implement end-of-word token)
-# TODO: Fix Trie entirely
+    def print_prefix(self, node: Node, prefix: str):
+        target_node = self.find_prefix(node, prefix)
+        if type(target_node) == Node:
+            output:list[str] = []
+            for value in self.get_children(target_node):
+                output.append(prefix + value)
+            return output
